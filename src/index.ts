@@ -2,6 +2,16 @@ import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
+// User Schema & Model
+import bcrypt from 'bcrypt';
+
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true }, // added name
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+});
+
+const User = mongoose.model('User', userSchema, 'User');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -84,6 +94,88 @@ app.use((err: Error, req: Request, res: Response, next: any) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something went wrong!' });
 });
+
+// REGISTER
+
+
+// REGISTER
+app.post('/api/register', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    console.log('[REGISTER] Incoming data:', req.body);
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Name, email, and password are required' });
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email already registered' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await User.create({
+      name,
+      email,
+      password: hashedPassword
+    });
+
+    console.log('[REGISTER] User created:', newUser);
+
+    return res.status(201).json({ 
+      message: 'User registered successfully', 
+      user: { id: newUser._id, name: newUser.name, email: newUser.email }
+    });
+  } catch (error: any) {
+    console.error('[REGISTER] Error:', error);
+
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Email already exists' });
+    }
+
+    return res.status(500).json({
+      message: 'Server error',
+      error: error.message || error
+    });
+  }
+});
+
+
+
+// LOGIN
+app.post('/api/login', async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // ✅ Respond with user data or token
+    return res.status(200).json({
+      message: 'Login successful',
+      user: { id: user.id, email: user.email },
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
 
 // Start server
 app.listen(PORT, () => {
