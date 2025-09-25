@@ -1,12 +1,13 @@
 import type { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import User from '../models/User.js';
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
 
 // Register
 export const register = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password) {
+    const { name, email, password, phoneNumber } = req.body;
+    if (!name || !email || !password || !phoneNumber) {
       return res.status(400).json({ message: 'All fields required' });
     }
 
@@ -16,19 +17,39 @@ export const register = async (req: Request, res: Response): Promise<Response> =
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await User.create({ name, email, password: hashedPassword });
+
+    const profilePicPath = req.file 
+      ? `/profile/${req.file.filename}` 
+      : null; 
+
+    const newUser = await User.create({ 
+      name, 
+      email, 
+      password: hashedPassword, 
+      phoneNumber, 
+      profilePic: profilePicPath 
+    });
+
+    const payload = { id: newUser._id, email: newUser.email };
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
 
     return res.status(201).json({
       message: 'User registered',
-      user: { id: newUser._id, name: newUser.name, email: newUser.email },
+      user: { 
+        id: newUser._id, 
+        name: newUser.name, 
+        email: newUser.email,
+        profilePic: newUser.profilePic
+      },
+      tokens: { accessToken, refreshToken }
     });
   } catch (error: any) {
-  return res.status(500).json({ 
-    message: 'Server error', 
-    error: error.message 
-  });
-}
-
+    return res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message 
+    });
+  }
 };
 
 // Login
@@ -46,15 +67,45 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    const payload = { id: user._id, email: user.email };
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
     return res.status(200).json({
       message: 'Login successful',
-      user: { id: user.id, email: user.email },
+      user: { id: user._id, email: user.email },
+      tokens: { accessToken, refreshToken }
     });
   } catch (error: any) {
-  return res.status(500).json({ 
-    message: 'Server error', 
-    error: error.message 
-  });
-}
+    return res.status(500).json({ 
+      message: 'Server error', 
+      error: error.message 
+    });
+  }
+};
 
+export const refresh = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({ error: 'Refresh token required' });
+    }
+
+    const decoded = verifyRefreshToken(refreshToken);
+    if (!decoded) {
+      return res.status(403).json({ error: 'Invalid refresh token' });
+    }
+
+    const accessToken = generateAccessToken({ 
+      id: (decoded as any).id, 
+      email: (decoded as any).email 
+    });
+
+    return res.json({ accessToken });
+  } catch (error: any) {
+    return res.status(500).json({ 
+      error: 'Server error', 
+      message: error.message 
+    });
+  }
 };
