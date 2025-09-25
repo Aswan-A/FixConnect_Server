@@ -1,5 +1,5 @@
-import { Request, Response } from 'express';
-import Issue from '../models/Issue';
+import type { Request, Response } from 'express';
+import Issue from '../models/Issue.js';
 
 export const getIssues = async (req: Request, res: Response) => {
   try {

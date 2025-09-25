@@ -1,10 +1,9 @@
-import 'dotenv/config';
-import express from 'express';
-import cors from 'cors';
-import connectDB from './config/db';
-import authRoutes from './routes/authRoutes';
-import issueRoutes from './routes/issueRoutes';
-import errorHandler from './middlewares/errorHandler';
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import connectDB from "./config/db.js";
+import indexRoutes from "./routes/index.routes.js";
+import errorHandler from "./middlewares/errorHandler.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -18,14 +17,15 @@ app.use(express.urlencoded({ extended: true }));
 connectDB();
 
 // Routes
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
-app.use('/api/auth', authRoutes);
-app.use('/api/issues', issueRoutes);
+app.use("/api/", indexRoutes);
 
 // Error handler
 app.use(errorHandler);
 
-app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
+app.listen(PORT, () =>
+  console.log(`🚀 Server running at http://localhost:${PORT}`)
+);

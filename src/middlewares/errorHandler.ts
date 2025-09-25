@@ -1,8 +1,13 @@
-import { Request, Response, NextFunction } from 'express';
+import type {
+  Request,
+  Response,
+  NextFunction,
+  ErrorRequestHandler,
+} from "express";
 
-const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error('🔥 Error:', err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+const errorHandler: ErrorRequestHandler = (err: Error, req, res, next) => {
+  console.error(" Error:", err.stack);
+  res.status(500).json({ error: "Something went wrong!" });
 };
 
 export default errorHandler;
