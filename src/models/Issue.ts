@@ -5,7 +5,10 @@ const issueSchema = new mongoose.Schema({
   description: { type: String, required: true },
   image: String,
   createdAt: { type: Date, default: Date.now },
-  location: { type: String, required: true },
+  location: {
+    type: { type: String, enum: ['Point'], default: 'Point' },
+    coordinates: { type: [Number], required: true }, 
+  },
   status: { 
     type: String, 
     enum: ['open', 'in progress', 'resolved'], 
@@ -18,12 +21,10 @@ const issueSchema = new mongoose.Schema({
     default: 'Other' 
   },
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  budget: { 
-    type: Number, 
-    min: 0, 
-    default: 0 
-  }
+  budget: { type: Number, min: 0, default: 0 }
 });
+
+issueSchema.index({ location: '2dsphere' });
 
 const Issue = mongoose.model('Issue', issueSchema, 'Issues');
 export default Issue;
