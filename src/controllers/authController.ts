@@ -6,7 +6,8 @@ import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '.
 // Register
 export const register = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const { name, email, password, phoneNumber } = req.body;
+    const { name, email, password, phoneNumber, isPro } = req.body;
+
     if (!name || !email || !password || !phoneNumber) {
       return res.status(400).json({ message: 'All fields required' });
     }
@@ -20,14 +21,15 @@ export const register = async (req: Request, res: Response): Promise<Response> =
 
     const profilePicPath = req.file 
       ? `/profile/${req.file.filename}` 
-      : null; 
+      : null;
 
     const newUser = await User.create({ 
       name, 
       email, 
       password: hashedPassword, 
       phoneNumber, 
-      profilePic: profilePicPath 
+      profilePic: profilePicPath,
+      isPro: isPro || false, 
     });
 
     const payload = { id: newUser._id, email: newUser.email };
@@ -40,7 +42,8 @@ export const register = async (req: Request, res: Response): Promise<Response> =
         id: newUser._id, 
         name: newUser.name, 
         email: newUser.email,
-        profilePic: newUser.profilePic
+        profilePic: newUser.profilePic,
+        isPro: newUser.isPro, 
       },
       tokens: { accessToken, refreshToken }
     });
