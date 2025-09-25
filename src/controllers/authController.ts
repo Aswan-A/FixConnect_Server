@@ -2,6 +2,8 @@ import type { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import User from '../models/User.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
+import type { AuthenticatedRequest } from '../middlewares/authMiddleware.js';
+import ProUser from "../models/proUser.js";
 
 // Register
 export const register = async (req: Request, res: Response): Promise<Response> => {
@@ -110,5 +112,51 @@ export const refresh = async (req: Request, res: Response): Promise<Response> =>
       error: 'Server error', 
       message: error.message 
     });
+  }
+};
+
+
+export const proRegister = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const { occupation, skill, degree, description } = req.body;
+
+    const existing = await ProUser.findOne({ userID: req.user._id });
+    if (existing) {
+      return res.status(400).json({ error: "User already registered as pro user" });
+    }
+
+    let certificates: string[] = [];
+    if (req.files && Array.isArray(req.files)) {
+      certificates = req.files.slice(0, 3).map((file: any) => `/certificates/${file.filename}`);
+    }
+
+    const proUser = new ProUser({
+      userID: req.user._id,
+      occupation,
+      skill: skill ? (Array.isArray(skill) ? skill : [skill]) : [],
+      Degee: degree,
+      certifications: certificates,
+      description,
+    });
+
+    await proUser.save();
+
+    res.status(201).json({
+      message: "Pro user registered successfully",
+      proUser: {
+        occupation: proUser.occupation,
+        skill: proUser.skill,
+        degree: proUser.Degee,
+        certifications: proUser.certifications,
+        description: proUser.description,
+      },
+    });
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to register pro user", message: error.message });
   }
 };

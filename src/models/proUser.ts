@@ -9,5 +9,5 @@ const proUserSchema = new mongoose.Schema({
   description: { type: String },
 });
 
-const proUser = mongoose.model("User", proUserSchema, "User");
+const proUser = mongoose.model("proUser", proUserSchema, "proUser");
 export default proUser;
