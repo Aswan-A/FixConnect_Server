@@ -10,7 +10,6 @@ export const getIssues = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Latitude, longitude, and radius are required' });
     }
 
-    // Convert radius to meters
     const radiusInMeters = Number(radius) * 1000;
 
     const issues = await Issue.find({
@@ -19,7 +18,7 @@ export const getIssues = async (req: Request, res: Response) => {
         $geoWithin: {
           $centerSphere: [
             [Number(longitude), Number(latitude)], 
-            radiusInMeters / 6378137 // Earth's radius in meters
+            radiusInMeters / 6378137 
           ]
         }
       }
@@ -38,7 +37,7 @@ export const createIssue = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { title, description, image, latitude, longitude, category } = req.body;
 
-    if (!req.user || !req.user._id) {
+    if (!req.user || !req.user.id) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
@@ -51,7 +50,7 @@ export const createIssue = async (req: AuthenticatedRequest, res: Response) => {
       description,
       image,
       category,
-      reportedBy: req.user._id,
+      reportedBy: req.user.id,
       location: {
         type: 'Point',
         coordinates: [Number(longitude), Number(latitude)],

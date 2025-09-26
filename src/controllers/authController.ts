@@ -118,13 +118,13 @@ export const refresh = async (req: Request, res: Response): Promise<Response> =>
 
 export const proRegister = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    if (!req.user || !req.user._id) {
+    if (!req.user || !req.user.id) {
       return res.status(401).json({ error: "User not authenticated" });
     }
 
     const { occupation, skill, degree, description } = req.body;
 
-    const existing = await ProUser.findOne({ userID: req.user._id });
+    const existing = await ProUser.findOne({ userID: req.user.id });
     if (existing) {
       return res.status(400).json({ error: "User already registered as pro user" });
     }
@@ -135,7 +135,7 @@ export const proRegister = async (req: AuthenticatedRequest, res: Response) => {
     }
 
     const proUser = new ProUser({
-      userID: req.user._id,
+      userID: req.user.id,
       occupation,
       skill: skill ? (Array.isArray(skill) ? skill : [skill]) : [],
       Degee: degree,
