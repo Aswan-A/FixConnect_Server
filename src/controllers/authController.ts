@@ -124,6 +124,7 @@ export const proRegister = async (req: AuthenticatedRequest, res: Response) => {
 
     const { occupation, skill, degree, description } = req.body;
 
+    // Check if already pro
     const existing = await ProUser.findOne({ userID: req.user.id });
     if (existing) {
       return res.status(400).json({ error: "User already registered as pro user" });
@@ -138,19 +139,21 @@ export const proRegister = async (req: AuthenticatedRequest, res: Response) => {
       userID: req.user.id,
       occupation,
       skill: skill ? (Array.isArray(skill) ? skill : [skill]) : [],
-      Degee: degree,
+      degree,
       certifications: certificates,
       description,
     });
 
     await proUser.save();
 
+    await User.findByIdAndUpdate(req.user.id, { isPro: true });
+
     res.status(201).json({
       message: "Pro user registered successfully",
       proUser: {
         occupation: proUser.occupation,
         skill: proUser.skill,
-        degree: proUser.Degee,
+        degree: proUser.degree,
         certifications: proUser.certifications,
         description: proUser.description,
       },

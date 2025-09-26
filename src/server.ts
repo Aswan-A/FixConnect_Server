@@ -15,10 +15,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/profile', express.static(path.join(process.cwd(), 'profile')));
 
-// Connect to DB
 connectDB();
 
-// Routes
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
 });
@@ -26,9 +24,8 @@ app.get("/health", (req, res) => {
 
 app.use("/api/", indexRoutes);
 
-// Error handler
 app.use(errorHandler);
 
 app.listen(PORT, () =>
-  console.log(`🚀 Server running at http://localhost:${PORT}`)
+  console.log(` Server running at http://localhost:${PORT}`)
 );

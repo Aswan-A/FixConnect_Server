@@ -47,18 +47,16 @@ export const updateProUser = async (req: Request, res: Response): Promise<Respon
 
 
 export const getUserProfile = async (req: Request, res: Response) => {
-  const { userId } = req.params; // assume frontend passes /profile/:userId
+  const { userId } = req.params;
 
   try {
     // Get the basic user info
-    const user = await User.findById(userId).select('-password'); // exclude password
+    const user = await User.findById(userId).select('-password'); 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Get the professional details if the user is a pro
-    const proUser = await ProUser.findOne({ userID: userId }); // assuming ProUser stores userID reference
-    // if no proUser, it's fine; frontend can handle null
+    const proUser = await ProUser.findOne({ userID: userId }); 
 
     return res.status(200).json({
       message: 'User profile fetched successfully',

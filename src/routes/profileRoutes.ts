@@ -5,6 +5,6 @@ const router : Router = Router();
 
 router.put('/update-isPro', updateIsPro);
 router.put('/pro-user/:id', updateProUser);
-router.get('/profile/:userId', getUserProfile);
+router.get('/:userId', getUserProfile);
 
 export default router;

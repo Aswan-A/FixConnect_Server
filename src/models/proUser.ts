@@ -4,7 +4,7 @@ const proUserSchema = new mongoose.Schema({
   userID: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   occupation: String,
   skill: [{ type: String }],
-  Degee: String,
+  degree: String,
   certifications: [{ type: String }],
   description: { type: String },
 });
