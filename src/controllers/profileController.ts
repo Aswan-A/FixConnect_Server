@@ -1,32 +1,15 @@
-import  type { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import User from '../models/User.js';
 import ProUser from '../models/proUser.js';
-
-export const updateIsPro = async (req: Request, res: Response) => {
-  const { userId, isPro } = req.body;
-
-  try {
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    user.isPro = isPro;
-    await user.save();
-
-    res.status(200).json({ message: 'User updated successfully', user });
-  } catch (error) {
-    res.status(500).json({ message: 'Error updating user', error });
-  }
-};
+import type { AuthenticatedRequest } from '../middlewares/authMiddleware.js';
 
 
-export const updateProUser = async (req: Request, res: Response): Promise<Response> => {
-  const { id } = req.params;
+export const updateProUser = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
+  const userId = req.user?.id; 
   const updates = req.body;
 
   try {
-    const proUser = await ProUser.findById(id);
+    const proUser = await ProUser.findOne({ userID: userId });
     if (!proUser) {
       return res.status(404).json({ message: 'Professional user not found' });
     }
@@ -37,7 +20,6 @@ export const updateProUser = async (req: Request, res: Response): Promise<Respon
       }
     });
 
-
     await proUser.save();
     return res.status(200).json({ message: 'Professional user updated successfully', proUser });
   } catch (error) {
@@ -45,12 +27,10 @@ export const updateProUser = async (req: Request, res: Response): Promise<Respon
   }
 };
 
-
-export const getUserProfile = async (req: Request, res: Response) => {
-  const { userId } = req.params;
+export const getUserProfile = async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
 
   try {
-    // Get the basic user info
     const user = await User.findById(userId).select('-password'); 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
