@@ -4,6 +4,8 @@ import User from '../models/User.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
 import type { AuthenticatedRequest } from '../middlewares/authMiddleware.js';
 import ProUser from "../models/proUser.js";
+import supabase from '../config/config.js';
+import path from 'path';
 
 // Register
 export const register = async (req: Request, res: Response): Promise<Response> => {
@@ -11,27 +13,49 @@ export const register = async (req: Request, res: Response): Promise<Response> =
     const { name, email, password, phoneNumber, isPro } = req.body;
 
     if (!name || !email || !password || !phoneNumber) {
-      return res.status(400).json({ message: 'All fields required' });
+      return res.status(400).json({ message: "All fields required" });
     }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: 'Email already registered' });
+      return res.status(400).json({ message: "Email already registered" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const profilePicPath = req.file 
-      ? `/profile/${req.file.filename}` 
-      : null;
+    let profilePicUrl: string | null = null;
 
-    const newUser = await User.create({ 
-      name, 
-      email, 
-      password: hashedPassword, 
-      phoneNumber, 
-      profilePic: profilePicPath,
-      isPro: isPro || false, 
+    if (req.file) {
+      const ext = path.extname(req.file.originalname);
+      const uniqueName = `profile-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+
+      const { error } = await supabase.storage
+        .from("profile-pics") 
+        .upload(uniqueName, req.file.buffer, {
+          contentType: req.file.mimetype,
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (error) {
+        console.error("Supabase upload error:", error);
+        return res.status(500).json({ message: "Error uploading profile picture" });
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from("profile-pics")
+        .getPublicUrl(uniqueName);
+
+      profilePicUrl = publicUrlData.publicUrl;
+    }
+
+    const newUser = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      phoneNumber,
+      profilePic: profilePicUrl, 
+      isPro: isPro || false,
     });
 
     const payload = { id: newUser._id, email: newUser.email };
@@ -39,20 +63,21 @@ export const register = async (req: Request, res: Response): Promise<Response> =
     const refreshToken = generateRefreshToken(payload);
 
     return res.status(201).json({
-      message: 'User registered',
-      user: { 
-        id: newUser._id, 
-        name: newUser.name, 
+      message: "User registered",
+      user: {
+        id: newUser._id,
+        name: newUser.name,
         email: newUser.email,
         profilePic: newUser.profilePic,
-        isPro: newUser.isPro, 
+        isPro: newUser.isPro,
       },
-      tokens: { accessToken, refreshToken }
+      tokens: { accessToken, refreshToken },
     });
   } catch (error: any) {
-    return res.status(500).json({ 
-      message: 'Server error', 
-      error: error.message 
+    console.error("Register error:", error);
+    return res.status(500).json({
+      message: "Server error",
+      error: error.message,
     });
   }
 };
