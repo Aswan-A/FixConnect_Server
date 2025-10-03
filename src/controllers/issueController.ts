@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import type {AuthenticatedRequest } from '../middlewares/authMiddleware.js';
 import Issue from '../models/Issue.js';
 import supabase from '../config/config.js';
+import IssueRequest from '../models/IssueRequest.js';
 
 export const getIssues = async (req: Request, res: Response) => {
   try {
@@ -105,5 +106,69 @@ export const createIssue = async (req: AuthenticatedRequest, res: Response) => {
   } catch (error: any) {
     console.error(error);
     res.status(500).json({ error: "Failed to create issue" });
+  }
+};
+
+
+export const getIssueById = async (req: Request, res: Response) => {
+  try {
+    const { issueId } = req.params;
+
+    const issue = await Issue.findById(issueId)
+      .populate("reportedBy", "name") 
+      .select("title description images createdAt location category status reportedBy");
+
+    if (!issue) {
+      return res.status(404).json({ error: "Issue not found" });
+    }
+
+    res.json(issue);
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch issue details" });
+  }
+};
+
+export const requestIssue = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const { issueId } = req.params;
+
+    const issue = await Issue.findById(issueId);
+    if (!issue) {
+      return res.status(404).json({ error: "Issue not found" });
+    }
+
+    // 🔹 Prevent duplicate requests
+    const existingRequest = await IssueRequest.findOne({
+      userId: req.user.id,
+      issueId: issue._id,
+    });
+
+    if (existingRequest) {
+      return res.status(400).json({ error: "You have already requested this issue" });
+    }
+
+    // 🔹 Create new request
+    const issueRequest = await IssueRequest.create({
+      userId: req.user.id,
+      issueId: issue._id,
+    });
+
+    res.status(201).json({
+      message: "Request submitted successfully",
+      request: {
+        id: issueRequest._id,
+        issueId: issueRequest.issueId,
+        userId: issueRequest.userId,
+        createdAt: issueRequest.createdAt,
+      },
+    });
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to submit request" });
   }
 };
