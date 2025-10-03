@@ -142,7 +142,6 @@ export const requestIssue = async (req: AuthenticatedRequest, res: Response) => 
       return res.status(404).json({ error: "Issue not found" });
     }
 
-    // 🔹 Prevent duplicate requests
     const existingRequest = await IssueRequest.findOne({
       userId: req.user.id,
       issueId: issue._id,
@@ -152,7 +151,6 @@ export const requestIssue = async (req: AuthenticatedRequest, res: Response) => 
       return res.status(400).json({ error: "You have already requested this issue" });
     }
 
-    // 🔹 Create new request
     const issueRequest = await IssueRequest.create({
       userId: req.user.id,
       issueId: issue._id,
@@ -170,5 +168,83 @@ export const requestIssue = async (req: AuthenticatedRequest, res: Response) => 
   } catch (error: any) {
     console.error(error);
     res.status(500).json({ error: "Failed to submit request" });
+  }
+};
+
+export const getUserIssues = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const issues = await Issue.find({ reportedBy: req.user.id })
+      .populate("reportedBy", "name email phoneNumber")
+      .select("-__v"); 
+
+    res.json(issues);
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch user issues" });
+  }
+};
+
+export const getRequestsForUserIssues = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const userIssues = await Issue.find({ reportedBy: req.user.id }).select("_id");
+    const issueIds = userIssues.map(issue => issue._id);
+
+    const requests = await IssueRequest.find({ issueId: { $in: issueIds } })
+      .populate("userId", "name email phoneNumber")
+      .populate("issueId", "title description images category status") 
+      .select("-__v");
+
+    res.json(requests);
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch requests" });
+  }
+};
+
+export const updateIssueStatus = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const { issueId } = req.params;
+    const { status } = req.body;
+
+    if (!["open", "in progress", "resolved"].includes(status)) {
+      return res.status(400).json({ error: "Invalid status value" });
+    }
+
+    const issue = await Issue.findById(issueId);
+    if (!issue) {
+      return res.status(404).json({ error: "Issue not found" });
+    }
+
+    if (!issue.reportedBy || issue.reportedBy.toString() !== req.user.id) {
+      return res.status(403).json({ error: "You are not authorized to update this issue" });
+    }
+
+    issue.status = status;
+    await issue.save();
+
+    res.json({
+      message: "Issue status updated successfully",
+      issue: {
+        id: issue._id,
+        title: issue.title,
+        status: issue.status,
+        updatedAt: new Date(),
+      },
+    });
+  } catch (error: any) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to update issue status" });
   }
 };
