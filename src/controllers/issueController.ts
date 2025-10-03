@@ -8,27 +8,31 @@ export const getIssues = async (req: Request, res: Response) => {
     const { latitude, longitude, radius } = req.query;
 
     if (!latitude || !longitude || !radius) {
-      return res.status(400).json({ error: 'Latitude, longitude, and radius are required' });
+      return res
+        .status(400)
+        .json({ error: "Latitude, longitude, and radius are required" });
     }
 
     const radiusInMeters = Number(radius) * 1000;
 
     const issues = await Issue.find({
-      status: 'open',
+      status: "open",
       location: {
         $geoWithin: {
           $centerSphere: [
-            [Number(longitude), Number(latitude)], 
-            radiusInMeters / 6378137 
-          ]
-        }
-      }
-    }).select('image title description createdAt location category');
+            [Number(longitude), Number(latitude)],
+            radiusInMeters / 6378137, 
+          ],
+        },
+      },
+    }).select("images title description createdAt location category status");
 
     res.json(issues);
   } catch (error: any) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to fetch issues', message: error.message });
+    console.error("Error fetching issues:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to fetch issues", message: error.message });
   }
 };
 
