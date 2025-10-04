@@ -19,5 +19,4 @@ router.post(
   upload.array("certificates", 3),
   proRegister
 );
-
 export default router;

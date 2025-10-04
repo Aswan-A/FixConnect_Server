@@ -149,15 +149,38 @@ export const proRegister = async (req: AuthenticatedRequest, res: Response) => {
 
     const { occupation, skill, degree, description } = req.body;
 
-    // Check if already pro
     const existing = await ProUser.findOne({ userID: req.user.id });
     if (existing) {
       return res.status(400).json({ error: "User already registered as pro user" });
     }
 
-    let certificates: string[] = [];
+    let certificateUrls: string[] = [];
+
     if (req.files && Array.isArray(req.files)) {
-      certificates = req.files.slice(0, 3).map((file: any) => `/certificates/${file.filename}`);
+      for (const file of req.files) {
+        const fileExt = file.originalname.split(".").pop();
+        const fileName = `certificates/${req.user.id}/${Date.now()}-${Math.random()
+          .toString(36)
+          .substring(2)}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("certificates")
+          .upload(fileName, file.buffer, {
+            contentType: file.mimetype,
+          });
+
+        if (uploadError) {
+          console.error("Upload error:", uploadError.message);
+          return res.status(500).json({ error: "Failed to upload certificate" });
+        }
+
+        // Get public URL
+        const { data: publicUrlData } = supabase.storage
+          .from("fixconnect-certificates")
+          .getPublicUrl(fileName);
+
+        certificateUrls.push(publicUrlData.publicUrl);
+      }
     }
 
     const proUser = new ProUser({
@@ -165,12 +188,13 @@ export const proRegister = async (req: AuthenticatedRequest, res: Response) => {
       occupation,
       skill: skill ? (Array.isArray(skill) ? skill : [skill]) : [],
       degree,
-      certifications: certificates,
+      certifications: certificateUrls,
       description,
     });
 
     await proUser.save();
 
+    // Mark user as pro
     await User.findByIdAndUpdate(req.user.id, { isPro: true });
 
     res.status(201).json({
