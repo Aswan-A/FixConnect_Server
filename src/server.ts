@@ -8,9 +8,12 @@ import path from "path";
 import fs from "fs";
 import https from "https";
 import http from "http";
+import { fileURLToPath } from "url";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
 
 app.use(cors());
 app.use(express.json());
@@ -26,16 +29,23 @@ app.use("/api/", indexRoutes);
 app.use(errorHandler);
 
 try {
-  const key = fs.readFileSync(path.join(process.cwd(), "certs/localhost-key.pem"));
-  const cert = fs.readFileSync(path.join(process.cwd(), "certs/localhost.pem"));
-  const httpsOptions = { key, cert };
+  const certDir = path.resolve(__dirname, "../../certs"); 
+  const certPath = path.join(certDir, "dev-local.pem");
+  const keyPath = path.join(certDir, "dev-local-key.pem");
 
-  https.createServer(httpsOptions, app).listen(PORT, () => {
+  if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
+    throw new Error("Certificates not found!");
+  }
+
+  const cert = fs.readFileSync(certPath); 
+  const key = fs.readFileSync(keyPath);   
+
+  https.createServer({ key, cert }, app).listen(PORT, "0.0.0.0", () => {
     console.log(`HTTPS Server running at https://localhost:${PORT}`);
   });
 } catch (error) {
-  console.warn("HTTPS certificates not found, falling back to HTTP.");
-  http.createServer(app).listen(PORT, () => {
+  console.warn("HTTPS certificates not found, falling back to HTTP.", error);
+  http.createServer(app).listen(PORT, "0.0.0.0", () => {
     console.log(`HTTP Server running at http://localhost:${PORT}`);
   });
 }
