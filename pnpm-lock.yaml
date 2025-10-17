@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@aashari/nodejs-geocoding':
+        specifier: ^2.7.2
+        version: 2.7.2
       '@supabase/supabase-js':
         specifier: ^2.58.0
         version: 2.58.0
@@ -62,6 +65,9 @@ importers:
         version: 5.9.2
 
 packages:
+
+  '@aashari/nodejs-geocoding@2.7.2':
+    resolution: {integrity: sha512-vv9MAufsozgFUNFEMYz0vV44c0ij0Vxh/CvX4bSOgDLgZuMnT/0816B6Zz5APlHPquVUvkBJwtbmBfCNjOPvtQ==}
 
   '@esbuild/aix-ppc64@0.25.10':
     resolution: {integrity: sha512-0NFWnA+7l41irNuaSVlLfgNT12caWJVLzp5eAVhZ0z1qpxbockccEt3s+149rE64VUI3Ml2zt8Nv5JVc4QXTsw==}
@@ -823,6 +829,8 @@ packages:
     engines: {node: '>=0.4'}
 
 snapshots:
+
+  '@aashari/nodejs-geocoding@2.7.2': {}
 
   '@esbuild/aix-ppc64@0.25.10':
     optional: true

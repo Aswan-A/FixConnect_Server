@@ -4,28 +4,38 @@ import cors from "cors";
 import connectDB from "./config/db.js";
 import indexRoutes from "./routes/index.routes.js";
 import errorHandler from "./middlewares/errorHandler.js";
-import path from 'path';
+import path from "path";
+import fs from "fs";
+import https from "https";
+import http from "http";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/profile', express.static(path.join(process.cwd(), 'profile')));
 
 connectDB();
 
-app.get("/health", (req, res) => {
+app.get("/health", (_req, res) => {
   res.status(200).json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
-
 app.use("/api/", indexRoutes);
-
 app.use(errorHandler);
 
-app.listen(PORT, () =>
-  console.log(` Server running at http://localhost:${PORT}`)
-);
+try {
+  const key = fs.readFileSync(path.join(process.cwd(), "certs/localhost-key.pem"));
+  const cert = fs.readFileSync(path.join(process.cwd(), "certs/localhost.pem"));
+  const httpsOptions = { key, cert };
+
+  https.createServer(httpsOptions, app).listen(PORT, () => {
+    console.log(`HTTPS Server running at https://localhost:${PORT}`);
+  });
+} catch (error) {
+  console.warn("HTTPS certificates not found, falling back to HTTP.");
+  http.createServer(app).listen(PORT, () => {
+    console.log(`HTTP Server running at http://localhost:${PORT}`);
+  });
+}

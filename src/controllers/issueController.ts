@@ -1,8 +1,9 @@
-import type { Request, Response } from 'express';
-import type {AuthenticatedRequest } from '../middlewares/authMiddleware.js';
-import Issue from '../models/Issue.js';
-import supabase from '../config/config.js';
-import IssueRequest from '../models/IssueRequest.js';
+import type { Request, Response } from "express";
+import type { AuthenticatedRequest } from "../middlewares/authMiddleware.js";
+import Issue from "../models/Issue.js";
+import supabase from "../config/config.js";
+import IssueRequest from "../models/IssueRequest.js";
+import geocoding from "@aashari/nodejs-geocoding";
 
 export const getIssues = async (req: Request, res: Response) => {
   try {
@@ -22,7 +23,7 @@ export const getIssues = async (req: Request, res: Response) => {
         $geoWithin: {
           $centerSphere: [
             [Number(longitude), Number(latitude)],
-            radiusInMeters / 6378137, 
+            radiusInMeters / 6378137,
           ],
         },
       },
@@ -37,8 +38,6 @@ export const getIssues = async (req: Request, res: Response) => {
   }
 };
 
-
-
 export const createIssue = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { title, description, latitude, longitude, category } = req.body;
@@ -48,20 +47,20 @@ export const createIssue = async (req: AuthenticatedRequest, res: Response) => {
     }
 
     if (!title || !description || !latitude || !longitude) {
-      return res
-        .status(400)
-        .json({ error: "Title, description, latitude, and longitude are required" });
+      return res.status(400).json({
+        error: "Title, description, latitude, and longitude are required",
+      });
     }
 
     let imageUrls: string[] = [];
 
     if (req.files && Array.isArray(req.files)) {
       for (const file of req.files as Express.Multer.File[]) {
-        const folder = `issues/${req.user.id}`; 
+        const folder = `issues/${req.user.id}`;
         const uniqueName = `${folder}/${Date.now()}-${file.originalname}`;
 
         const { error } = await supabase.storage
-          .from("issue-images") 
+          .from("issue-images")
           .upload(uniqueName, file.buffer, {
             contentType: file.mimetype,
             upsert: false,
@@ -83,7 +82,7 @@ export const createIssue = async (req: AuthenticatedRequest, res: Response) => {
     const issue = new Issue({
       title,
       description,
-      images: imageUrls, 
+      images: imageUrls,
       category,
       reportedBy: req.user.id,
       location: {
@@ -109,27 +108,46 @@ export const createIssue = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-
 export const getIssueById = async (req: Request, res: Response) => {
   try {
     const { issueId } = req.params;
 
     const issue = await Issue.findById(issueId)
-      .populate("reportedBy", "name") 
-      .select("title description images createdAt location category status reportedBy");
+      .populate("reportedBy", "name")
+      .select(
+        "title description images createdAt location category status reportedBy"
+      );
 
     if (!issue) {
       return res.status(404).json({ error: "Issue not found" });
     }
 
-    res.json(issue);
+    let address: string | undefined = undefined;
+
+    if (issue.location?.coordinates.length === 2) {
+      const [lng, lat] = issue.location.coordinates;
+      if (lng !== undefined && lat !== undefined) {
+        const geocodeResult = await geocoding.decode(lat, lng);
+        address = geocodeResult?.formatted_address;
+      }
+    }
+
+    const issueObject = issue.toObject();
+
+    delete issueObject.location;
+
+    return res.json({ ...issueObject, address });
   } catch (error: any) {
     console.error(error);
     res.status(500).json({ error: "Failed to fetch issue details" });
   }
 };
 
-export const requestIssue = async (req: AuthenticatedRequest, res: Response) => {
+
+export const requestIssue = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
   try {
     if (!req.user || !req.user.id) {
       return res.status(401).json({ error: "User not authenticated" });
@@ -148,7 +166,9 @@ export const requestIssue = async (req: AuthenticatedRequest, res: Response) => 
     });
 
     if (existingRequest) {
-      return res.status(400).json({ error: "You have already requested this issue" });
+      return res
+        .status(400)
+        .json({ error: "You have already requested this issue" });
     }
 
     const issueRequest = await IssueRequest.create({
@@ -171,7 +191,10 @@ export const requestIssue = async (req: AuthenticatedRequest, res: Response) => 
   }
 };
 
-export const getUserIssues = async (req: AuthenticatedRequest, res: Response) => {
+export const getUserIssues = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
   try {
     if (!req.user?.id) {
       return res.status(401).json({ error: "User not authenticated" });
@@ -179,7 +202,7 @@ export const getUserIssues = async (req: AuthenticatedRequest, res: Response) =>
 
     const issues = await Issue.find({ reportedBy: req.user.id })
       .populate("reportedBy", "name email phoneNumber")
-      .select("-__v"); 
+      .select("-__v");
 
     res.json(issues);
   } catch (error: any) {
@@ -188,18 +211,23 @@ export const getUserIssues = async (req: AuthenticatedRequest, res: Response) =>
   }
 };
 
-export const getRequestsForUserIssues = async (req: AuthenticatedRequest, res: Response) => {
+export const getRequestsForUserIssues = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
   try {
     if (!req.user?.id) {
       return res.status(401).json({ error: "User not authenticated" });
     }
 
-    const userIssues = await Issue.find({ reportedBy: req.user.id }).select("_id");
-    const issueIds = userIssues.map(issue => issue._id);
+    const userIssues = await Issue.find({ reportedBy: req.user.id }).select(
+      "_id"
+    );
+    const issueIds = userIssues.map((issue) => issue._id);
 
     const requests = await IssueRequest.find({ issueId: { $in: issueIds } })
       .populate("userId", "name email phoneNumber")
-      .populate("issueId", "title description images category status") 
+      .populate("issueId", "title description images category status")
       .select("-__v");
 
     res.json(requests);
@@ -209,7 +237,10 @@ export const getRequestsForUserIssues = async (req: AuthenticatedRequest, res: R
   }
 };
 
-export const updateIssueStatus = async (req: AuthenticatedRequest, res: Response) => {
+export const updateIssueStatus = async (
+  req: AuthenticatedRequest,
+  res: Response
+) => {
   try {
     if (!req.user?.id) {
       return res.status(401).json({ error: "User not authenticated" });
@@ -228,7 +259,9 @@ export const updateIssueStatus = async (req: AuthenticatedRequest, res: Response
     }
 
     if (!issue.reportedBy || issue.reportedBy.toString() !== req.user.id) {
-      return res.status(403).json({ error: "You are not authorized to update this issue" });
+      return res
+        .status(403)
+        .json({ error: "You are not authorized to update this issue" });
     }
 
     issue.status = status;
