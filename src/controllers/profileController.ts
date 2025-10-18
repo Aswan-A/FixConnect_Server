@@ -47,3 +47,24 @@ export const getUserProfile = async (req: AuthenticatedRequest, res: Response) =
     return res.status(500).json({ message: 'Error fetching profile', error });
   }
 };
+
+export const getUser = async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+
+  try {
+    const user = await User.findById(userId).select('profilePic name');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const proUser = await ProUser.findOne({ userID: userId });
+
+    return res.status(200).json({
+      message: 'User profile fetched successfully',
+      user,
+      proUser: proUser || null,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Error fetching profile', error });
+  }
+};
