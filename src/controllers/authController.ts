@@ -176,7 +176,7 @@ export const proRegister = async (req: AuthenticatedRequest, res: Response) => {
 
         // Get public URL
         const { data: publicUrlData } = supabase.storage
-          .from("fixconnect-certificates")
+          .from("certificates")
           .getPublicUrl(fileName);
 
         certificateUrls.push(publicUrlData.publicUrl);
