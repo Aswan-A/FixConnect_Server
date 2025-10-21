@@ -100,7 +100,7 @@ export const login = async (req: Request, res: Response): Promise<Response> => {
     const payload = { id: user._id, email: user.email };
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
-
+console.log("User logged in:", accessToken, refreshToken);
     return res.status(200).json({
       message: 'Login successful',
       user: { id: user._id, email: user.email },
