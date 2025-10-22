@@ -4,6 +4,7 @@ import Issue from "../models/Issue.js";
 import supabase from "../config/config.js";
 import IssueRequest from "../models/IssueRequest.js";
 import geocoding from "@aashari/nodejs-geocoding";
+import proUser from "../models/proUser.js";
 
 export const getIssues = async (req: Request, res: Response) => {
   try {
@@ -212,28 +213,45 @@ export const getUserIssues = async (
 };
 
 export const getRequestsForUserIssues = async (
-  req: AuthenticatedRequest,
+  req: Request,
   res: Response
 ) => {
   try {
-    if (!req.user?.id) {
-      return res.status(401).json({ error: "User not authenticated" });
+    const { issueId } = req.params;
+
+    if (!issueId) {
+      return res.status(400).json({ error: "Issue ID is required" });
     }
 
-    const userIssues = await Issue.find({ reportedBy: req.user.id }).select(
-      "_id"
+    // Find all requests for this issue, populate only pro users
+    const requests = await IssueRequest.find({ issueId })
+      .populate({
+        path: "userId",
+        match: { isPro: true }, // Only include users where isPro is true
+        select: "name profilePic isPro",
+      });
+
+    // Filter out requests where userId was not populated (i.e., not pro)
+    const proRequests = requests.filter((reqDoc) => reqDoc.userId);
+
+    // Merge proUser info
+    const proUsers = await Promise.all(
+      proRequests.map(async (reqDoc) => {
+        const user = reqDoc.userId as any;
+
+        const proInfo = await proUser
+          .findOne({ userID: user._id })
+          .select("occupation skill degree certifications description -_id")
+          .lean();
+
+        return { ...user.toObject(), ...proInfo };
+      })
     );
-    const issueIds = userIssues.map((issue) => issue._id);
 
-    const requests = await IssueRequest.find({ issueId: { $in: issueIds } })
-      .populate("userId", "name email phoneNumber")
-      .populate("issueId", "title description images category status")
-      .select("-__v");
-
-    res.json(requests);
+    res.json(proUsers);
   } catch (error: any) {
     console.error(error);
-    res.status(500).json({ error: "Failed to fetch requests" });
+    res.status(500).json({ error: "Failed to fetch pro users" });
   }
 };
 
