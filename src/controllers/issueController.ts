@@ -112,7 +112,7 @@ export const createIssue = async (req: AuthenticatedRequest, res: Response) => {
 export const getIssueById = async (req: Request, res: Response) => {
   try {
     const { issueId } = req.params;
-
+    
     const issue = await Issue.findById(issueId)
       .populate("reportedBy", "name")
       .select(
